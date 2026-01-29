@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Star, Trophy, RefreshCw, Play } from 'lucide-react';
+
+const Card = ({ item, isFlipped, isMatched, onClick }) => {
+  return (
+    <div 
+      onClick={onClick}
+      className={`relative w-20 h-20 sm:w-28 sm:h-28 cursor-pointer transform transition-transform duration-500 hover:scale-105 perspective-1000`}
+    >
+      <div 
+        className={`w-full h-full transition-all duration-500 transform-style-3d ${
+          isFlipped || isMatched ? 'rotate-y-180' : ''
+        }`}
+      >
+        {/* Parte de trás da carta (Capa) */}
+        <div 
+          className="absolute w-full h-full bg-indigo-600 rounded-xl shadow-lg flex items-center justify-center backface-hidden border-2 border-indigo-400"
+          style={{ backfaceVisibility: 'hidden' }}
+        >
+          <BookOpen className="text-white w-8 h-8 sm:w-10 sm:h-10 opacity-80" />
+        </div>
+
+        {/* Parte da frente da carta (Imagem/Conteúdo) */}
+        <div 
+          className={`absolute w-full h-full bg-white rounded-xl shadow-xl flex flex-col items-center justify-center border-2 backface-hidden rotate-y-180 ${
+            isMatched ? 'border-green-500 bg-green-50' : 'border-amber-400'
+          }`}
+          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+        >
+          <div className="text-3xl sm:text-5xl mb-1">{item.emoji}</div>
+          <span className="text-[10px] sm:text-xs font-bold text-gray-600 text-center px-1 leading-tight">
+            {item.label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [gameState, setGameState] = useState('start'); // start, playing, won
+  const [cards, setCards] = useState([]);
+  const [flippedCards, setFlippedCards] = useState([]);
+  const [moves, setMoves] = useState(0);
+  const [matches, setMatches] = useState(0);
+
+  // Dados das cartas baseados no pedido
+  const items = [
+    { id: 1, type: '39', emoji: '3️⃣9️⃣', label: 'Livros do AT' },
+    { id: 2, type: 'biblia', emoji: '📖', label: 'Bíblia Sagrada' },
+    { id: 3, type: 'criacao', emoji: '☀️', label: 'A Criação' },
+    { id: 4, type: 'noe', emoji: '🌈', label: 'Arca de Noé' },
+    { id: 5, type: 'mandamentos', emoji: '📜', label: 'Mandamentos' },
+    { id: 6, type: 'jonas', emoji: '🐋', label: 'Jonas' },
+    { id: 7, type: 'daniel', emoji: '🦁', label: 'Cova dos Leões' },
+    { id: 8, type: 'davi', emoji: '👑', label: 'Rei Davi' },
+  ];
+
+  const startGame = () => {
+    // Duplicar os itens para criar pares
+    const newCards = [...items, ...items]
+      .sort(() => Math.random() - 0.5) // Embaralhar
+      .map((item, index) => ({ ...item, uniqueId: index, isFlipped: false, isMatched: false }));
+
+    setCards(newCards);
+    setFlippedCards([]);
+    setMoves(0);
+    setMatches(0);
+    setGameState('playing');
+  };
+
+  const handleCardClick = (clickedCard) => {
+    // Impedir clique se já estiver virada, se já for par, ou se já tiver 2 viradas
+    if (
+      clickedCard.isFlipped || 
+      clickedCard.isMatched || 
+      flippedCards.length >= 2
+    ) return;
+
+    // Virar a carta
+    const updatedCards = cards.map(card => 
+      card.uniqueId === clickedCard.uniqueId ? { ...card, isFlipped: true } : card
+    );
+    setCards(updatedCards);
+    
+    const newFlippedCards = [...flippedCards, clickedCard];
+    setFlippedCards(newFlippedCards);
+
+    // Verificar par
+    if (newFlippedCards.length === 2) {
+      setMoves(prev => prev + 1);
+      checkForMatch(newFlippedCards, updatedCards);
+    }
+  };
+
+  const checkForMatch = (currentFlipped, currentCards) => {
+    const [card1, card2] = currentFlipped;
+
+    if (card1.type === card2.type) {
+      // É um par!
+      setTimeout(() => {
+        const matchedCards = currentCards.map(card => 
+          card.type === card1.type ? { ...card, isMatched: true } : card
+        );
+        setCards(matchedCards);
+        setFlippedCards([]);
+        setMatches(prev => {
+          const newMatches = prev + 1;
+          if (newMatches === items.length) {
+            setTimeout(() => setGameState('won'), 500);
+          }
+          return newMatches;
+        });
+      }, 500);
+    } else {
+      // Não é par, desvirar após delay
+      setTimeout(() => {
+        const resetCards = currentCards.map(card => 
+          card.uniqueId === card1.uniqueId || card.uniqueId === card2.uniqueId
+            ? { ...card, isFlipped: false }
+            : card
+        );
+        setCards(resetCards);
+        setFlippedCards([]);
+      }, 1000);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-amber-50 font-sans flex flex-col items-center justify-center p-4 selection:bg-indigo-200">
+      
+      {/* Cabeçalho */}
+      <header className="mb-6 text-center">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-900 drop-shadow-sm mb-2">
+          Memória Bíblica
+        </h1>
+        <p className="text-indigo-700 font-medium">Antigo Testamento</p>
+      </header>
+
+      {/* Tela Inicial */}
+      {gameState === 'start' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border-b-4 border-indigo-600 animate-fade-in">
+          <BookOpen className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Bem-vindo!</h2>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Encontre os pares das histórias sagradas. 
+            Você verá a Criação, o número 39 (livros do AT), a Arca e muito mais.
+          </p>
+          <button 
+            onClick={startGame}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-bold py-4 rounded-xl shadow-md transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+          >
+            <Play fill="currentColor" />
+            JOGAR AGORA
+          </button>
+        </div>
+      )}
+
+      {/* Tabuleiro do Jogo */}
+      {gameState === 'playing' && (
+        <div className="w-full max-w-4xl animate-fade-in">
+          <div className="flex justify-between items-center mb-4 px-2 sm:px-8">
+            <div className="bg-white px-4 py-2 rounded-lg shadow text-indigo-800 font-bold">
+              Tentativas: {moves}
+            </div>
+            <button 
+              onClick={startGame} 
+              className="text-indigo-600 hover:bg-indigo-100 p-2 rounded-full transition-colors"
+              title="Reiniciar Jogo"
+            >
+              <RefreshCw size={24} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 sm:gap-4 justify-items-center mx-auto max-w-fit">
+            {cards.map((card) => (
+              <Card 
+                key={card.uniqueId} 
+                item={card} 
+                isFlipped={card.isFlipped} 
+                isMatched={card.isMatched}
+                onClick={() => handleCardClick(card)} 
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tela de Vitória */}
+      {gameState === 'won' && (
+        <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full border-b-4 border-green-500 animate-bounce-in">
+          <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-4 drop-shadow-md" />
+          <h2 className="text-3xl font-bold text-green-700 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-6 text-lg">
+            Você completou o jogo com <strong>{moves}</strong> tentativas.
+            <br />
+            <span className="text-sm text-gray-500 mt-2 block">"Lâmpada para os meus pés é a tua palavra..." Salmos 119:105</span>
+          </p>
+          <button 
+            onClick={startGame}
+            className="w-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-4 rounded-xl shadow-md transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+          >
+            <RefreshCw />
+            JOGAR NOVAMENTE
+          </button>
+        </div>
+      )}
+
+      {/* Rodapé */}
+      <footer className="mt-8 text-indigo-400 text-xs text-center font-medium">
+        Criado para edificar e divertir
+      </footer>
+
+      {/* Estilos para animação 3D */}
+      <style jsx global>{`
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+        .transform-style-3d {
+          transform-style: preserve-3d;
+        }
+        .backface-hidden {
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+          transform: rotateY(180deg);
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+}
